@@ -13,7 +13,7 @@ from datetime import date
 app = FastAPI()
 
 """SET UP CORS"""
-origins = ["http://localhost:5173"]
+origins = ["http://localhost:5173", "https://purplegirls.netlify.app"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
