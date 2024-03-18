@@ -1,5 +1,4 @@
 from fastapi import FastAPI, HTTPException, status, Request, Response, Header
-import pymongo
 from pymongo import MongoClient
 from fastapi.middleware.cors import CORSMiddleware
 from bson.objectid import ObjectId
