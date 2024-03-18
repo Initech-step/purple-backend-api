@@ -1,19 +1,18 @@
 from fastapi import FastAPI, HTTPException, status, Request, Response, Header
 import pymongo
 from pymongo import MongoClient
-from pydantic import BaseModel, Field
 from fastapi.middleware.cors import CORSMiddleware
 from bson.objectid import ObjectId
-from fastapi_pagination import Page, add_pagination
-from fastapi_pagination.ext.pymongo import paginate
+# from fastapi_pagination import Page, add_pagination
+# from fastapi_pagination.ext.pymongo import paginate
 from typing import List
-from datetime import date
+from utils.database import connect_to_db
+from utils.models import LogInDetails, Category, ImageModel, ImageGroup, BlogPost, Admin, PageContent
 
 #initialize app
 app = FastAPI()
-
 """SET UP CORS"""
-origins = ["http://localhost:5173", "https://purplegirls.netlify.app"]
+origins = ["http://localhost:5173", "https://fyapurplegirls.org"]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
@@ -22,53 +21,7 @@ app.add_middleware(
     allow_methods=["*"]
 )
 
-#design schemas
-class Category(BaseModel):
-    name:str
-    description:str
-
-class ImageGroup(BaseModel):
-    title:str
-    description:str
-
-class ImageModel(BaseModel):
-    orignal_filename:str
-    url:str
-    asset_id:str
-    image_title:str
-    image_group_id:str
-
-class BlogPost(BaseModel):
-    image_url:str
-    category_id:str
-    category_name:str
-    post_title:str
-    short_title:str
-    body:str
-    date:str = Field(default=str(date.today()))
-
-class PageContent(BaseModel):
-    image_url:str
-    content_title:str
-    body:str
-    page:str
-
-class Admin(BaseModel):
-    email:str
-    password:str
-    token:str
-
-class LogInDetails(BaseModel):
-    email:str
-    password:str
-
-
-#set up db
-password = 'wHs2mEqKAo9urlIR'
-username= 'PGAdmin'
-connection_uri = MongoClient(f"mongodb+srv://PGAdmin:{password}@clusterpg1.vyvxp8e.mongodb.net/?retryWrites=true&w=majority")
-database = connection_uri['Websitedata']
-print(database)
+database = connect_to_db()
 
 #auth helpers
 def VALIDATE_TOKEN(token):
@@ -89,7 +42,7 @@ def validate_toke(token:str=Header()):
 @app.post("/api/auth/login/", status_code=status.HTTP_200_OK)
 def login_doa(login:LogInDetails):
     auth_collection = database.Admin
-    login_detail_dict = login.dict() #from user
+    login_detail_dict = login.model_dump() #from user
     given_pword = login_detail_dict.get('password')
     given_email = login_detail_dict.get('email')
 
@@ -112,7 +65,7 @@ category apis
 @app.post('/api/category/', status_code=status.HTTP_201_CREATED)
 def create_category(category:Category, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        category_data = category.dict()
+        category_data = category.model_dump()
         category_collection = database.BlogCategories
         try:
             category_collection.insert_one(category_data)
@@ -133,7 +86,7 @@ Image Management
 @app.post('/api/imagegroup/', status_code=status.HTTP_201_CREATED)
 def create_image_group(image_group:ImageGroup, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        group_data = image_group.dict()
+        group_data = image_group.model_dump()
         group_collection = database.ImageGroup
         try:
             group_collection.insert_one(group_data)
@@ -155,7 +108,7 @@ def get_imagegroup():
 @app.post('/api/add_image/', status_code=status.HTTP_201_CREATED)
 def add_image(image:ImageModel, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        image_data = image.dict()
+        image_data = image.model_dump()
         image_collection = database.Image
         try:
             image_collection.insert_one(image_data)
@@ -189,7 +142,7 @@ def get_gallery_images(gallery_id):
 @app.post('/api/add_post/', status_code=status.HTTP_201_CREATED)
 def add_blog_post(blog:BlogPost, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        blog_data = blog.dict()
+        blog_data = blog.model_dump()
         blog_collection = database.BlogPost
         try:
             blog_collection.insert_one(blog_data)
@@ -201,7 +154,7 @@ def add_blog_post(blog:BlogPost, token:str=Header()):
 @app.post('/api/edit_blog_content/{b_id}', status_code=status.HTTP_200_OK)
 def edit_blog_content(blog_content:BlogPost, b_id:str, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        blog_data = blog_content.dict()
+        blog_data = blog_content.model_dump()
         blog_collection = database.BlogPost
         data_target = blog_collection.find_one({'_id': ObjectId(b_id)})
         if data_target == None:
@@ -367,7 +320,7 @@ PAGE CONTENT API
 @app.post('/api/add_page_content/', status_code=status.HTTP_201_CREATED)
 def add_blog_post(page_content:PageContent, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        page_data = page_content.dict()
+        page_data = page_content.model_dump()
         page_collection = database.PageContent
         try:
             page_collection.insert_one(page_data)
@@ -379,7 +332,7 @@ def add_blog_post(page_content:PageContent, token:str=Header()):
 @app.post('/api/edit_page_content/{c_id}', status_code=status.HTTP_200_OK)
 def edit_page_content(page_content:PageContent, c_id:str, token:str=Header()):
     if VALIDATE_TOKEN(token):
-        page_data = page_content.dict()
+        page_data = page_content.model_dump()
         page_collection = database.PageContent
         data_target = page_collection.find_one({'_id': ObjectId(c_id)})
         if data_target == None:
