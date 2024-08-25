@@ -7,6 +7,9 @@ class Category(BaseModel):
     name:str
     description:str
 
+class EmailNewsletter(BaseModel):
+    email:str
+
 class ImageGroup(BaseModel):
     title:str
     description:str

@@ -6,7 +6,7 @@ from bson.objectid import ObjectId
 # from fastapi_pagination.ext.pymongo import paginate
 from typing import List
 from utils.database import connect_to_db
-from utils.models import LogInDetails, Category, ImageModel, ImageGroup, BlogPost, Admin, PageContent
+from utils.models import LogInDetails, Category, ImageModel, ImageGroup, BlogPost, Admin, PageContent, EmailNewsletter
 
 #initialize app
 app = FastAPI()
@@ -101,6 +101,7 @@ def get_imagegroup():
                         {'id':str(d.get('_id')), 
                         'title':str(d.get('title')), 
                         'description':str(d.get('description'))} for d in data]
+    serialized_data.reverse()
     return {'status':True, 'groups':serialized_data}
 
 
@@ -216,6 +217,7 @@ def get_blog_posts(page:int=1, limit:int=10):
             'date':str(d.get('date')),
             'short_title': str(d.get('short_title')),
         })
+    serialized_data.reverse()
     return {'status':True, 'blogs':serialized_data, 'is_last':is_last}
 
 #DELETE blog CONTENT
@@ -273,6 +275,7 @@ def get_blog_posts(category_id:str, page:int=1, limit:int=10):
             'date':str(d.get('date')),
             'short_title': str(d.get('short_title')),
         })
+    serialized_data.reverse()
     return {'status':True, 'blogs':serialized_data, 'is_last':is_last}
 
 #GET LAST 3 POSTS
@@ -296,6 +299,7 @@ def get_blog_posts():
                 'date':str(d.get('date')),
                 'short_title': str(d.get('short_title')),
             })
+        serialized_data.reverse()
         return {'status':True, 'blogs':serialized_data}
     else:
         for d in all:
@@ -309,6 +313,7 @@ def get_blog_posts():
                 'date':str(d.get('date')),
                 'short_title': str(d.get('short_title')),
             })
+            serialized_data.reverse()
         return {'status':True, 'blogs':serialized_data}
 
 
@@ -408,3 +413,56 @@ def get_specific_page_content(token:str=Header()):
         post_count = database.BlogPost.count_documents({})
         cat_count = database.Category.count_documents({})
         return {'status':True, 'number_of_posts':post_count, 'number_of_categories':cat_count}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+"""
+Email newsletter API
+"""
+
+def not_duplicate(email_data):
+    newsletter_collection = database.Emails    
+    test = newsletter_collection.find_one({'email': email_data.get("email")})
+    print(test)
+    if test == None:
+        return True
+    else:
+        return False
+
+#API FOR ADDING PAGE
+@app.post('/api/register_email/', status_code=status.HTTP_201_CREATED)
+def add_email(newsletter:EmailNewsletter):
+    email_data = newsletter.model_dump()
+    newsletter_collection = database.Emails
+    if not_duplicate(email_data):
+        try:
+            newsletter_collection.insert_one(email_data)
+            return {'status':True}
+        except:
+            return {'status':False}
+    else:
+        return {'status':False}
+        
+#GET ALL EMAILS
+@app.get('/api/get_emai/')
+def get_image_for_blog(token:str=Header()):
+    if VALIDATE_TOKEN(token):
+        newsletter_collection = database.Emails
+        data = newsletter_collection.find({})
+        serialized_data = [{
+            'id':str(d.get('_id')),
+            'email':str(d.get('email'))} for d in data]
+        
+        return {'status':True, 'contents':serialized_data}
+    
