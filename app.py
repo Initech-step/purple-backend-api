@@ -5,6 +5,7 @@ from bson.objectid import ObjectId
 # from fastapi_pagination import Page, add_pagination
 # from fastapi_pagination.ext.pymongo import paginate
 from typing import List
+import math
 from utils.database import connect_to_db
 from utils.models import LogInDetails, Category, ImageModel, ImageGroup, BlogPost, Admin, PageContent, EmailNewsletter
 
@@ -58,6 +59,9 @@ def login_doa(login:LogInDetails):
 def root():
     return {"message": "Hello Purple Girls"}
 
+
+
+
 """
 category apis
 """
@@ -78,6 +82,10 @@ def get_categories():
     data = category_collection.find({})
     serialized_data = [{'id':str(d.get('_id')), 'name':str(d.get('name')), 'description':str(d.get('description'))} for d in data]
     return {'status':True, 'categories':serialized_data}
+
+
+
+
 
 """
 Image Management
@@ -136,6 +144,11 @@ def get_gallery_images(gallery_id):
         'img_url':str(d.get('url'))} for d in data]
     return {'status':True, 'images':serialized_data}
 
+
+
+
+
+
 """
  BLOG APIS
 """
@@ -168,12 +181,14 @@ def edit_blog_content(blog_content:BlogPost, b_id:str, token:str=Header()):
                     'category_id': blog_data.get('category_id'),
                     'short_title': blog_data.get('short_title'),
                     'body': blog_data.get('body'),
+                    'video':  blog_data.get('video'),
+                    'iframe':  blog_data.get('iframe')
                 }
             })
         return {'status':True}
 
 #GET SPECIFIC BLOG POST
-@app.get('/api/get_blog_content/{b_id}', status_code=status.HTTP_201_CREATED)
+@app.get('/api/get_blog_content/{b_id}', status_code=status.HTTP_200_OK)
 def get_blog_content(b_id:str):
     blog_collection = database.BlogPost
     data_target = blog_collection.find_one({'_id': ObjectId(b_id)})
@@ -188,37 +203,82 @@ def get_blog_content(b_id:str):
         'short_title': str(data_target.get('short_title')),
         'body': str(data_target.get('body')),
         'date':str(data_target.get('date')),
+        'video': str(data_target.get('video')),
+        'iframe':str(data_target.get('iframe'))
     }
     return {'status':True, 'content':ok_data}
 
 #GET ALL BLOG CONTENTS
 @app.get('/api/get_blog_posts/')
-def get_blog_posts(page:int=1, limit:int=10):
+def get_blog_posts(page:int=1, limit:int=9):
     blog_collection = database.BlogPost
-    #get last item in blog
-    all = list(blog_collection.find({}))
-    last_post = all[-1]
-    last_id = last_post.get('_id')
-    is_last = False
-    print(last_id)
-    #get data for serialization
-    data = blog_collection.find({}).skip((page-1) * limit).limit(limit)
+    data = list(blog_collection.find({}))
+    data.reverse()
+    
+    number_of_pages = math.ceil(len(data)/limit)
     serialized_data = []
-    for d in data:
-        if(last_id == d.get('_id')):
-            is_last = True
-        serialized_data.append({
-            'id':str(d.get('_id')),
-            'post_title':str(d.get('post_title')),
-            'category_name':str(d.get('category_name')),
-            'image_url':str(d.get('image_url')),
-            'category_id':str(d.get('category_id')),
-            'body':str(d.get('body')),
-            'date':str(d.get('date')),
-            'short_title': str(d.get('short_title')),
-        })
-    serialized_data.reverse()
-    return {'status':True, 'blogs':serialized_data, 'is_last':is_last}
+    pages = []
+
+    for num in range(1, number_of_pages+1):
+        pages.append(num)
+        for i in range(limit):
+            #check if the list is empty
+            if data != []:
+                #select the next item on the list
+                blog_item = data[0]
+                serialized_data.append({
+                    'id':str(blog_item.get('_id')),
+                    'post_title':str(blog_item.get('post_title')),
+                    'category_name':str(blog_item.get('category_name')),
+                    'image_url':str(blog_item.get('image_url')),
+                    'category_id':str(blog_item.get('category_id')),
+                    'body':str(blog_item.get('body')),
+                    'date':str(blog_item.get('date')),
+                    'short_title': str(blog_item.get('short_title')),
+                    #add a property of page number to the
+                    'page_no': num,
+                })
+                #delete blog item from data
+                del data[0]
+            else:
+                break
+    return {'status':True, 'blogs':serialized_data, 'pages':pages}
+
+#GET BLOG POSTS BY CATEGORY
+@app.get('/api/get_posts_by_category/')
+def get_blog_posts(category_id:str, limit:int=9):
+    blog_collection = database.BlogPost
+    data = list(blog_collection.find({'category_id':str(category_id)}))
+    data.reverse()
+    
+    number_of_pages = math.ceil(len(data)/limit)
+    serialized_data = []
+    pages = []
+
+    for num in range(1, number_of_pages+1):
+        pages.append(num)
+        for i in range(limit):
+            #check if the list is empty
+            if data != []:
+                #select the next item on the list
+                blog_item = data[0]
+                serialized_data.append({
+                    'id':str(blog_item.get('_id')),
+                    'post_title':str(blog_item.get('post_title')),
+                    'category_name':str(blog_item.get('category_name')),
+                    'image_url':str(blog_item.get('image_url')),
+                    'category_id':str(blog_item.get('category_id')),
+                    'body':str(blog_item.get('body')),
+                    'date':str(blog_item.get('date')),
+                    'short_title': str(blog_item.get('short_title')),
+                    #add a property of page number to the
+                    'page_no': num,
+                })
+                #delete blog item from data
+                del data[0]
+            else:
+                break
+    return {'status':True, 'blogs':serialized_data, 'pages':pages}
 
 #DELETE blog CONTENT
 @app.delete('/api/del_blog_post/{b_id}/', status_code=status.HTTP_200_OK)
@@ -248,35 +308,11 @@ def get_last_post():
         'body':str(last_post.get('body')),
         'date':str(last_post.get('date')),
         'short_title': str(last_post.get('short_title')),
+        'iframe': str(last_post.get('iframe')),
+        'video': str(last_post.get('video'))
     }
     return {'status':True, 'data':serialized_data}
 
-
-#GET BLOG POSTS BY CATEGORY
-@app.get('/api/get_posts_by_category/')
-def get_blog_posts(category_id:str, page:int=1, limit:int=10):
-    blog_collection = database.BlogPost
-    #get last item in blog
-    all = list(blog_collection.find({'category_id':str(category_id)}).skip((page-1) * limit).limit(limit))
-    last_post = all[-1]
-    last_id = last_post.get('_id')
-    is_last = False
-    serialized_data = []
-    for d in all:
-        if(last_id == d.get('_id')):
-            is_last = True
-        serialized_data.append({
-            'id':str(d.get('_id')),
-            'post_title':str(d.get('post_title')),
-            'category_name':str(d.get('category_name')),
-            'image_url':str(d.get('image_url')),
-            'category_id':str(d.get('category_id')),
-            'body':str(d.get('body')),
-            'date':str(d.get('date')),
-            'short_title': str(d.get('short_title')),
-        })
-    serialized_data.reverse()
-    return {'status':True, 'blogs':serialized_data, 'is_last':is_last}
 
 #GET LAST 3 POSTS
 @app.get('/api/get_recent_posts/')
@@ -315,6 +351,9 @@ def get_blog_posts():
             })
             serialized_data.reverse()
         return {'status':True, 'blogs':serialized_data}
+
+
+
 
 
 """

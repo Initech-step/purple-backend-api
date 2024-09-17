@@ -29,6 +29,8 @@ class BlogPost(BaseModel):
     short_title:str
     body:str
     date:str = Field(default=str(date.today()))
+    video: bool = False
+    iframe: str
 
 class PageContent(BaseModel):
     image_url:str
