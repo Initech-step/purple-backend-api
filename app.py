@@ -12,7 +12,11 @@ from utils.models import LogInDetails, Category, ImageModel, ImageGroup, BlogPos
 #initialize app
 app = FastAPI()
 """SET UP CORS"""
-origins = ["http://localhost:5173", "https://fyapurplegirls.org"]
+origins = [
+    "http://localhost:5173", 
+    "https://fyapurplegirls.org", 
+    "https://purplegirls.netlify.app"
+]
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
